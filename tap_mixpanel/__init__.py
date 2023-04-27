@@ -15,7 +15,6 @@ LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = [
     'project_timezone',
-    'api_secret',
     'date_window_size',
     'attribution_window',
     'start_date',
@@ -46,8 +45,21 @@ def main():
         LOGGER.warning("WARNING: start_date greater than 1 year maxiumum for API.")
         LOGGER.warning("WARNING: Setting start_date to 1 year ago, {}".format(start_date))
 
-
+    #Initialize necessary keys into the dictionary.
+    params = parsed_args.config
+    if params.get("username") and params.get("password"):
+        if params.get("project_id") is None:
+            raise Exception("project_id is required for Service User/Password type of authentication")
+        params.update({"api_secret":None})
+    elif params.get("api_secret"):  
+         params.update({"username":None,"password":None,"project_id":None})  
+    else:
+        raise Exception("No API secret OR Username/Password provided.")
+          
     with MixpanelClient(parsed_args.config['api_secret'],
+                        parsed_args.config['username'],
+                        parsed_args.config['password'],
+                        parsed_args.config['project_id'],
                         parsed_args.config['user_agent']) as client:
 
         state = {}
