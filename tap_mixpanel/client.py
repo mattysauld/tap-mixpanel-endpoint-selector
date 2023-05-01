@@ -94,12 +94,19 @@ def raise_for_error(response):
 class MixpanelClient(object):
     def __init__(self,
                  api_secret,
+                 username,
+                 password,
+                 project_id,
                  user_agent=None):
         self.__api_secret = api_secret
+        self.username = username
+        self.password = password
         self.__user_agent = user_agent
         self.__session = requests.Session()
         self.__verified = False
         self.disable_engage_endpoint = False
+        self.project_id = project_id
+        self.basic_auth = False
 
     def __enter__(self):
         self.__verified = self.check_access()
@@ -114,22 +121,38 @@ class MixpanelClient(object):
                           max_tries=5,
                           factor=2)
     def check_access(self):
-        if self.__api_secret is None:
+        basic_auth = self.basic_auth
+        if self.username and self.password:
+            basic_auth = True  
+            self.basic_auth = True
+        elif self.__api_secret is None:
             raise Exception('Error: Missing api_secret in tap config.json.')
         headers = {}
         # Endpoint: simple API call to return a single record (org settings) to test access
-        url = 'https://mixpanel.com/api/2.0/engage'
+        if basic_auth:
+            url = "https://mixpanel.com/api/app/me"
+        else:    
+            url = 'https://mixpanel.com/api/2.0/engage'
         LOGGER.info('Checking access by calling {}'.format(url))
         if self.__user_agent:
             headers['User-Agent'] = self.__user_agent
         headers['Accept'] = 'application/json'
-        headers['Authorization'] = 'Basic {}'.format(
-            str(base64.urlsafe_b64encode(self.__api_secret.encode("utf-8")), "utf-8"))
+
+        if not basic_auth:
+            headers['Authorization'] = 'Basic {}'.format(
+                str(base64.urlsafe_b64encode(self.__api_secret.encode("utf-8")), "utf-8"))
 
         try:
-            response = self.__session.get(
-                url=url,
-                headers=headers)
+            if basic_auth:
+                response = self.__session.get(
+                    url=url,
+                    headers=headers,
+                    auth=(self.username,self.password)
+                    )
+            else:
+                response = self.__session.get(
+                    url=url,
+                    headers=headers)   
         except requests.exceptions.Timeout as err:
             LOGGER.error('TIMEOUT ERROR: {}'.format(err))
             raise ReadTimeoutError
@@ -203,9 +226,18 @@ class MixpanelClient(object):
 
         if method == 'POST':
             kwargs['headers']['Content-Type'] = 'application/json'
-
-        kwargs['headers']['Authorization'] = 'Basic {}'.format(
-            str(base64.urlsafe_b64encode(self.__api_secret.encode("utf-8")), "utf-8"))
+        if self.basic_auth:
+            kwargs['auth'] = (self.username,self.password)
+            if params is None:
+                params = {}
+            if isinstance(params,dict):
+                params.update({"project_id":self.project_id})
+            elif isinstance(params,str):
+                params = f"{params}&project_id={self.project_id}" 
+        else:    
+            kwargs['headers']['Authorization'] = 'Basic {}'.format(
+                str(base64.urlsafe_b64encode(self.__api_secret.encode("utf-8")), "utf-8"))
+            
         with metrics.http_request_timer(endpoint) as timer:
             response = self.perform_request(method=method,
                                             url=url,
@@ -245,8 +277,16 @@ class MixpanelClient(object):
         if method == 'POST':
             kwargs['headers']['Content-Type'] = 'application/json'
 
-        kwargs['headers']['Authorization'] = 'Basic {}'.format(
-            str(base64.urlsafe_b64encode(self.__api_secret.encode("utf-8")), "utf-8"))
+        if self.basic_auth:
+            kwargs['auth'] = (self.username,self.password)
+            if isinstance(params,dict):
+                params.update({"project_id":self.project_id})
+            elif isinstance(params,str):
+                params = f"{params}&project_id={self.project_id}"    
+        else:    
+            kwargs['headers']['Authorization'] = 'Basic {}'.format(
+                str(base64.urlsafe_b64encode(self.__api_secret.encode("utf-8")), "utf-8"))
+            
         with metrics.http_request_timer(endpoint) as timer:
             response = self.perform_request(method=method,
                                         url=url,
