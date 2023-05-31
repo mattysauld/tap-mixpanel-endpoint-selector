@@ -6,7 +6,7 @@ import urllib
 import singer
 import uuid
 from singer import metrics, metadata, Transformer, utils
-from singer.utils import strptime_to_utc
+from singer.utils import strptime_to_utc, strftime
 from tap_mixpanel.transform import transform_record
 from tap_mixpanel.streams import STREAMS
 from tap_mixpanel.client import MixpanelError, Server5xxError
@@ -151,6 +151,16 @@ def sync_endpoint(client, #pylint: disable=too-many-branches
     last_datetime = None
     max_bookmark_value = None
     last_datetime = get_bookmark(state, stream_name, start_date)
+
+    #ONLY FOR FUNNELS ENDPOINT check if start_date is greater than 90 days
+    if stream_name == "funnels":
+        last_dt_utc = strptime_to_utc(last_datetime)
+        now= utils.now()
+        delta_days = (now - last_dt_utc).days
+        if delta_days>=90:
+            delta_days = 90
+            last_datetime = strftime(now - timedelta(days=delta_days))
+    #-
     max_bookmark_value = last_datetime
 
     write_schema(catalog, stream_name)
