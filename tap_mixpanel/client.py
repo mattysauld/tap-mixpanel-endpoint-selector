@@ -95,11 +95,13 @@ def raise_for_error(response):
 class MixpanelClient(object):
     def __init__(self,
                  api_secret,
+                 region,
                  username,
                  password,
                  project_id,
                  user_agent=None):
         self.__api_secret = api_secret
+        self.region = region
         self.username = username
         self.password = password
         self.__user_agent = user_agent
@@ -132,8 +134,10 @@ class MixpanelClient(object):
         # Endpoint: simple API call to return a single record (org settings) to test access
         if basic_auth:
             url = "https://mixpanel.com/api/app/me"
-        else:    
+        elif self.region == 'us':    
             url = 'https://mixpanel.com/api/2.0/engage'
+        elif self.region == 'eu':    
+            url = 'https://eu.mixpanel.com/api/2.0/engage'
         LOGGER.info('Checking access by calling {}'.format(url))
         if self.__user_agent:
             headers['User-Agent'] = self.__user_agent
@@ -208,8 +212,10 @@ class MixpanelClient(object):
 
         if url and path:
             url = '{}/{}'.format(url, path)
-        elif path and not url:
+        elif path and not url and self.region == 'us':
             url = 'https://mixpanel.com/api/2.0/{}'.format(path)
+        elif path and not url and self.region == 'eu':
+            url = 'https://eu.mixpanel.com/api/2.0/{}'.format(path)
 
         if 'endpoint' in kwargs:
             endpoint = kwargs['endpoint']
@@ -258,8 +264,10 @@ class MixpanelClient(object):
 
         if url and path:
             url = '{}/{}'.format(url, path)
-        elif path and not url:
+        elif path and not url and self.region == 'us':
             url = 'https://data.mixpanel.com/api/2.0/{}'.format(path)
+        elif path and not url and self.region == 'eu':
+            url = 'https://data-eu.mixpanel.com/api/2.0/{}'.format(path)
 
         if 'endpoint' in kwargs:
             endpoint = kwargs['endpoint']
