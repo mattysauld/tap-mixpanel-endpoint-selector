@@ -15,6 +15,7 @@ LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = [
     'project_timezone',
+    'region',
     'date_window_size',
     'attribution_window',
     'start_date',
@@ -60,6 +61,7 @@ def main():
                         parsed_args.config['username'],
                         parsed_args.config['password'],
                         parsed_args.config['project_id'],
+                        parsed_args.config['region'],
                         parsed_args.config['user_agent']) as client:
 
         state = {}
