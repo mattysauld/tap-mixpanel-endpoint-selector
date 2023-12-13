@@ -2,6 +2,7 @@ import os
 import json
 from singer import metadata
 from tap_mixpanel.streams import STREAMS
+from tap_mixpanel.streams_eu import STREAMS_EU
 import singer
 
 LOGGER = singer.get_logger()
@@ -125,7 +126,12 @@ def get_schemas(client, properties_flag, denest_properties_flag):
     schemas = {}
     field_metadata = {}
 
-    for stream_name, stream_metadata in STREAMS.items():
+    if client.region == 'eu':
+        STREAMREF = STREAMS_EU
+    else:
+        STREAMREF = STREAMS
+        
+    for stream_name, stream_metadata in STREAMREF.items():
         # When the client detects disable_engage_endpoint, skip discovering the stream
         if stream_name == 'engage' and client.disable_engage_endpoint:
             LOGGER.warning('Mixpanel returned a 402 indicating the Engage endpoint and stream is unavailable. Skipping.')

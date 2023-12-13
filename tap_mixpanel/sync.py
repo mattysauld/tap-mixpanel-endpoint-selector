@@ -9,6 +9,7 @@ from singer import metrics, metadata, Transformer, utils
 from singer.utils import strptime_to_utc, strftime
 from tap_mixpanel.transform import transform_record
 from tap_mixpanel.streams import STREAMS
+from tap_mixpanel.streams_eu import STREAMS_EU
 from tap_mixpanel.client import MixpanelError, Server5xxError
 
 
@@ -525,12 +526,17 @@ def sync(client, config, catalog, state, start_date):
 
     if not selected_streams:
         return
+    
+    if client.region == 'eu':
+        STREAMREF = STREAMS_EU
+    else:
+        STREAMREF = STREAMS
 
     # Loop through selected_streams
     for stream_name in selected_streams:
         LOGGER.info('START Syncing: {}'.format(stream_name))
         update_currently_syncing(state, stream_name)
-        endpoint_config = STREAMS[stream_name]
+        endpoint_config = STREAMREF[stream_name]
         path = endpoint_config.get('path', stream_name)
         bookmark_field = next(iter(endpoint_config.get('replication_keys', [])), None)
         endpoint_total = sync_endpoint(
